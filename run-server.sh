@@ -32,6 +32,8 @@ export WSGI_FLAGS=()
 export ADMIN_HOST_RANGE=()
 export EMBARK_BASEDIR=""
 export OS_TYPE=""
+export MYSQLCLIENT_LDFLAGS='-L/usr/mysql/lib -lmysqlclient -lssl -lcrypto -lresolv'
+export MYSQLCLIENT_CFLAGS='-I/usr/include/mysql/'
 
 STRICT_MODE=0
 EMBARK_BASEDIR="$(realpath "$(dirname "${0}")")"
@@ -193,12 +195,15 @@ fi
 # start container first (speedup?)
 docker compose -f ./docker-compose.yml up -d
 
+# sync emba
+sync_emba_forward
+
 # check emba
 echo -e "${BLUE}""${BOLD}""checking EMBA""${NC}"
-if ! [[ -d ./emba ]]; then
+if ! [[ -d /var/www/emba ]]; then
   echo -e "${RED}""${BOLD}""You are using the wrong installation and missing the EMBA subdirectory""${NC}"
 fi
-if ! (cd "${EMBARK_BASEDIR:-${PWD}}"/emba && ./emba -d 1); then
+if ! (cd "/var/www/emba" && ./emba -d 1); then
   echo -e "${RED}""EMBA is not configured correctly""${NC}"
   exit 1
 fi
@@ -236,14 +241,6 @@ fi
 # check db and start container
 check_db
 
-# update cves
-if [[ -d ./emba/external/nvd-json-data-feeds ]]; then
-  (cd ./emba/external/nvd-json-data-feeds && git pull)
-fi
-
-# sync emba
-sync_emba_forward
-
 # logs
 if ! [[ -d ./docker_logs ]]; then
   mkdir docker_logs
@@ -271,6 +268,7 @@ fi
 {
   echo -e "LoadModule auth_basic_module \${MOD_WSGI_MODULES_DIRECTORY}/mod_auth_basic.so"
   echo -e "LoadModule authz_user_module \${MOD_WSGI_MODULES_DIRECTORY}/mod_authz_user.so"
+  echo -e "LoadModule version_module \${MOD_WSGI_MODULES_DIRECTORY}/mod_version.so"
   echo -e "WSGIPythonHome /var/www/.venv"
   echo -e "WSGIPythonPath /var/www/embark/embark"
   echo -e ""
@@ -389,8 +387,8 @@ sleep 5
 echo -e "\n[""${BLUE} JOB""${NC}""] Creating Admin account"
 "${PIPENV_COMMAND}" run ./manage.py createsuperuser --noinput 2>/dev/null
 
-# load default groups
-echo -e "\n[""${BLUE} JOB""${NC}""] Creating default permission groups"
+# load fixtures e.g default groups
+echo -e "\n[""${BLUE} JOB""${NC}""] Creating default model-instances"
 "${PIPENV_COMMAND}" run ./manage.py loaddata ./*/fixtures/*.json 2>/dev/null
 
 echo -e "\n[""${BLUE} JOB""${NC}""] Starting Apache"
@@ -433,6 +431,9 @@ fi
 # echo -e "\n""${ORANGE}${BOLD}""For SSL you may use https://embark.local (Not recommended for local use)""${NC}"
 
 # periodically sync the 2 EMBA repos while the server is running
-sync_emba_backward && sleep 10 &
+while true; do
+  sleep 100
+  sync_emba_backward
+done &
 
 wait
