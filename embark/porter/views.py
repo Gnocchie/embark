@@ -1,5 +1,5 @@
 __copyright__ = 'Copyright 2022-2026 Siemens Energy AG'
-__author__ = 'Benedikt Kuehne'
+__author__ = 'Benedikt Kuehne, Eren Erguer'
 __license__ = 'MIT'
 
 from http import HTTPStatus
@@ -167,42 +167,47 @@ def export_menu(request):
 @require_http_methods(["POST"])
 def export_analysis(request):
     """
-    View for exporting EMBA analysis(POST)
-    Args:
-        form(obj)
-    returns:
-        json of result(s)
+    View for exporting an EMBA analysis.
     """
-    req_logger.info("Export Req by user: %s", request.user)
+
+    req_logger.info(
+        "Export request by user: %s",
+        request.user,
+    )
+
     form = FirmwareAnalysisExportForm(request.POST)
-    if form.is_valid():
-        logger.debug("Posted Form is valid")
-        analysis_obj = form.cleaned_data['analysis']
-        # check auth
-        if not user_is_auth(request.user, analysis_obj.user):
-            messages.error(request=request, message='Unauthorized')
-            return redirect('..')
-        
-        # call exporter
-        temp_file = NamedTemporaryFile(
-        suffix=".zip",
-        delete=False,
+    if not form.is_valid():
+        messages.error(
+            request=request,
+            message="Form invalid",
         )
+        return redirect("..")
 
-        export_results(
-            analysis_obj.id,
-            temp_file.name,
+    analysis_obj = form.cleaned_data["analysis"]
+
+    if not user_is_auth(
+        request.user,
+        analysis_obj.user,
+    ):
+        messages.error(
+            request=request,
+            message="Unauthorized",
         )
+        return redirect("..")
 
-        return FileResponse(
-            open(temp_file.name, "rb"),
-            as_attachment=True,
-            filename=f"analysis_{analysis_obj.id}.zip",
-        )
+    export_options = form.cleaned_data["export_options"]
 
-    else:
-        messages.error(request=request, message='Form invalid')
-        return redirect('..')
+    export_analysis.delay(
+        analysis_obj.id,
+        export_options,
+    )
+
+    messages.success(
+        request=request,
+        message="Export started.",
+    )
+
+    return redirect("..")
 
 
 @permission_required('users.porter_permission', login_url='/')

@@ -1,5 +1,5 @@
 __copyright__ = 'Copyright 2022-2026 Siemens Energy AG'
-__author__ = 'Benedikt Kuehne'
+__author__ = 'Benedikt Kuehne, Eren Erguer'
 __license__ = 'MIT'
 
 import logging
@@ -20,10 +20,20 @@ class FirmwareAnalysisImportForm(forms.Form):
     version = forms.CharField(max_length=127, help_text="Firmware version", required=False)
     notes = forms.CharField(max_length=127, help_text="Firmware version notes", required=False)
 
+EXPORT_OPTIONS = (
+    ("html-report", "HTML report"),
+    ("logs", "Logs"),
+    ("firmware", "Firmware"),
+)
 
 class FirmwareAnalysisExportForm(forms.Form):
     analysis = forms.ModelChoiceField(queryset=FirmwareAnalysis.objects.filter(finished=True, failed=False))
 
+    export_options = forms.MultipleChoiceField(
+        choices=EXPORT_OPTIONS,
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+    )
 
 class DeleteZipForm(forms.Form):
     zip_file = forms.ModelChoiceField(queryset=LogZipFile.objects, empty_label='Select zip-file to delete')
