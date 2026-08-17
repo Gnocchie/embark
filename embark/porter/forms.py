@@ -11,6 +11,11 @@ from uploader.models import FirmwareAnalysis, FirmwareFile, Device
 
 logger = logging.getLogger(__name__)
 
+EXPORT_OPTIONS = (
+    ("html-report", "HTML report"),
+    ("logs", "Logs"),
+    ("firmware", "Firmware"),
+)
 
 class FirmwareAnalysisImportForm(forms.Form):
     zip_log_file = forms.ModelChoiceField(queryset=LogZipFile.objects.all(), empty_label='Select the zip-file for the import', required=True)
@@ -20,14 +25,11 @@ class FirmwareAnalysisImportForm(forms.Form):
     version = forms.CharField(max_length=127, help_text="Firmware version", required=False)
     notes = forms.CharField(max_length=127, help_text="Firmware version notes", required=False)
 
-EXPORT_OPTIONS = (
-    ("html-report", "HTML report"),
-    ("logs", "Logs"),
-    ("firmware", "Firmware"),
-)
 
 class FirmwareAnalysisExportForm(forms.Form):
-    analysis = forms.ModelChoiceField(queryset=FirmwareAnalysis.objects.filter(finished=True, failed=False))
+    analysis = forms.ModelChoiceField(
+        queryset=FirmwareAnalysis.objects.filter(finished=True, failed=False)
+    )
 
     export_options = forms.MultipleChoiceField(
         choices=EXPORT_OPTIONS,

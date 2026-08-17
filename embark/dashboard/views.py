@@ -286,7 +286,7 @@ def delete_analysis(request, analysis_id):
 @permission_required("users.dashboard_permission_minimal", login_url='/')
 @login_required(login_url='/' + settings.LOGIN_URL)
 @require_http_methods(["GET"])
-def archive_analysis(request, analysis_id):
+def archive_analysis(request, analysis_id): # FIXME: Archiving non-functional
     """
     archives analysis, safes zip instead of normal log directory
     and sets analysis into archived state
@@ -304,8 +304,9 @@ def archive_analysis(request, analysis_id):
     if analysis.zip_file is None:
         # make archive for uuid
         _ = make_zip(request, analysis_id)
-    # TODO is this ever reached??
-    analysis.do_archive() # TODO: reached and faulty
+
+    analysis.do_archive() # FIXME: reached and faulty
+    
     analysis.archived = True
     analysis.save(update_fields=["archived"])
     messages.success(request, 'Analysis: ' + str(analysis_id) + ' successfully archived')

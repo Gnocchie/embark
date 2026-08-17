@@ -14,6 +14,8 @@ from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from datetime import datetime
+from django.utils import timezone
 
 from embark.helper import user_is_auth
 from uploader.boundedexecutor import BoundedExecutor
@@ -23,7 +25,7 @@ from porter.exporter import export_results
 from porter.importer import result_read_in
 from porter.models import LogZipFile
 from porter.forms import FirmwareAnalysisImportForm, FirmwareAnalysisExportForm, DeleteZipForm, RetryImportForm
-
+from porter.tasks import export_analysis as export_analysis_task
 
 logger = logging.getLogger(__name__)
 req_logger = logging.getLogger("requests")
@@ -156,11 +158,47 @@ def import_delete(request):
 @require_http_methods(["GET"])
 def export_menu(request):
     """
-    view for export menu(GET)
+    View for export menu (GET).
     """
     export_form = FirmwareAnalysisExportForm()
-    return render(request, 'porter/export.html', {'export_form': export_form})
 
+    analyses = FirmwareAnalysis.objects.filter(
+        user=request.user,
+        finished=True,
+        failed=False,
+    )
+
+    exports = []
+
+    for analysis in analyses:
+        zip_path = (
+            Path(settings.EMBA_LOG_ROOT)
+            / str(analysis.id)
+            / "exports"
+            / f"analysis_{analysis.id}.zip"
+        )
+
+        if zip_path.is_file():
+            exports.append({
+                "analysis": analysis,
+                "zip_path": zip_path,
+                "export_date": timezone.localtime(
+                    datetime.fromtimestamp(
+                        zip_path.stat().st_mtime,
+                        tz=timezone.get_current_timezone(),
+                    )
+                ),
+                "export_size": zip_path.stat().st_size,
+            })
+
+    return render(
+        request,
+        'porter/export.html',
+        {
+            'export_form': export_form,
+            'exports': exports,
+        },
+    )
 
 @permission_required('users.porter_permission', login_url='/')
 @login_required(login_url='/' + settings.LOGIN_URL)
@@ -197,17 +235,87 @@ def export_analysis(request):
 
     export_options = form.cleaned_data["export_options"]
 
-    export_analysis.delay(
+    export_analysis_task.delay(
         analysis_obj.id,
         export_options,
     )
 
-    messages.success(
+    messages.info(
         request=request,
-        message="Export started.",
+        message="Export started. The ZIP will appear under Available Exports shortly.",
     )
 
     return redirect("..")
+
+
+@login_required(login_url='/' + settings.LOGIN_URL)
+@require_http_methods(["GET"])
+def download_export(request, analysis_id):
+    """
+    Download the generated EMBArk export ZIP for an analysis.
+    """
+
+    try:
+        analysis = FirmwareAnalysis.objects.get(id=analysis_id)
+    except FirmwareAnalysis.DoesNotExist:
+        raise Http404("Analysis does not exist")
+
+    if not user_is_auth(request.user, analysis.user):
+        return HttpResponseForbidden("You are not authorized!")
+
+    zip_path = (
+        Path(settings.EMBA_LOG_ROOT)
+        / str(analysis_id)
+        / "exports"
+        / f"analysis_{analysis_id}.zip"
+    )
+
+    if not zip_path.is_file():
+        raise Http404("Export ZIP does not exist")
+
+    return FileResponse(
+        open(zip_path, "rb"),
+        as_attachment=True,
+        filename=zip_path.name,
+    )
+
+@permission_required('users.porter_permission', login_url='/')
+@login_required(login_url='/' + settings.LOGIN_URL)
+@require_http_methods(["POST"])
+def delete_export(request, analysis_id):
+    """
+    Delete the generated EMBArk export ZIP for an analysis.
+    """
+
+    try:
+        analysis = FirmwareAnalysis.objects.get(id=analysis_id)
+    except FirmwareAnalysis.DoesNotExist:
+        raise Http404("Analysis does not exist")
+
+    if not user_is_auth(request.user, analysis.user):
+        return HttpResponseForbidden("You are not authorized!")
+
+    zip_path = (
+        Path(settings.EMBA_LOG_ROOT)
+        / str(analysis_id)
+        / "exports"
+        / f"analysis_{analysis_id}.zip"
+    )
+
+    if zip_path.is_file():
+        zip_path.unlink()
+
+        messages.success(
+            request,
+            f"Export for analysis {analysis_id} deleted.",
+        )
+    else:
+        messages.warning(
+            request,
+            "Export ZIP does not exist.",
+        )
+
+    return redirect("embark-export-menu")
 
 
 @permission_required('users.porter_permission', login_url='/')

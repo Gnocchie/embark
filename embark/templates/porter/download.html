@@ -3,16 +3,63 @@
         <div class="col-sm">
             <div class="box">
                 <p class="mainText">Export Analysis Result</p>
-                <p class="subText">TODO currently only exports as json</p>
+                <p class="subText">Please choose your export options</p>
 
                 <form action="{% url 'embark-export-analysis' %}" method="post" id="form">
                     {% csrf_token %}
                     <div class="innerBlock">
                         {% load filters %}
                         {% bootstrap_form export_form %}
-                        {% bootstrap_button "Download" button_type="submit" button_class="btn-primary" %}
+                        {% bootstrap_button "Start Export" button_type="submit" button_class="btn-primary" %}
                     </div>
                 </form>
 
             </div>
+            {% if exports %}
+                <div class="box">
+                    <p class="mainText">Available Exports</p>
+                    <p class="subText">Previously generated analysis exports</p>
+
+                    <div class="innerBlock">
+                        {% for export in exports %}
+                            <div class="exportEntry">
+                                <div>
+                                    <strong>{{ export.analysis.firmware_name }}</strong>
+                                    <br>
+                                    <small>
+                                        Analysis ID: {{ export.analysis.id }}
+                                    </small>
+                                    <br>
+                                    <small>
+                                        Exported: {{ export.export_date|date:"Y-m-d H:i:s" }}
+                                    </small>
+                                    <br>
+                                    <small>
+                                        Size: {{ export.export_size|filesizeformat }}
+                                    </small>
+                                </div>
+
+                                <a
+                                    href="{% url 'embark-export-download' export.analysis.id %}"
+                                    class="btn btn-primary"
+                                >
+                                    Download ZIP
+                                </a>
+                                
+                                <form
+                                    action="{% url 'embark-export-delete' export.analysis.id %}"
+                                    method="post"
+                                    style="display: inline;"
+                                    onsubmit="return confirm('Are you sure you want to delete this export?');"
+                                >
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
