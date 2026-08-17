@@ -22,42 +22,33 @@
 
                     <div class="innerBlock">
                         {% for export in exports %}
-                            <div class="exportEntry">
-                                <div>
-                                    <strong>{{ export.analysis.firmware_name }}</strong>
-                                    <br>
-                                    <small>
-                                        Analysis ID: {{ export.analysis.id }}
-                                    </small>
-                                    <br>
-                                    <small>
-                                        Exported: {{ export.export_date|date:"Y-m-d H:i:s" }}
-                                    </small>
-                                    <br>
-                                    <small>
-                                        Size: {{ export.export_size|filesizeformat }}
-                                    </small>
+                            <div class="export-entry">
+
+                                <div class="export-info">
+                                    <strong>Analysis:</strong> {{ export.analysis.id }}<br>
+                                    <strong>Firmware:</strong> {{ export.analysis.firmware_name }}<br>
+                                    <strong>Created:</strong> {{ export.created_at|date:"d.m.Y H:i" }}<br>
+                                    <strong>Options:</strong> {{ export.export_options|join:", " }}
                                 </div>
 
-                                <a
-                                    href="{% url 'embark-export-download' export.analysis.id %}"
-                                    class="btn btn-primary"
-                                >
-                                    Download ZIP
-                                </a>
-                                
-                                <form
-                                    action="{% url 'embark-export-delete' export.analysis.id %}"
-                                    method="post"
-                                    style="display: inline;"
-                                    onsubmit="return confirm('Are you sure you want to delete this export?');"
-                                >
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger">
-                                        Delete
-                                    </button>
-                                </form>
+                                <div class="export-actions">
+                                    <a href="{% url 'embark-export-download' export.id %}"
+                                    class="btn btn-primary">
+                                        Download
+                                    </a>
+
+                                    <form method="post"
+                                        action="{% url 'embark-export-delete' export.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+
                             </div>
+                        {% empty %}
+                            <p>No exports available.</p>
                         {% endfor %}
                     </div>
                 </div>

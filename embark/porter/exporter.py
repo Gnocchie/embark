@@ -13,7 +13,7 @@ from uploader.models import FirmwareAnalysis
 logger = logging.getLogger(__name__)
 
 
-def export_results(analysis_id, export_options):
+def export_results(analysis_id, export_options, export_id):
     """
     Create an EMBArk export ZIP containing the selected
     analysis components.
@@ -48,7 +48,7 @@ def export_results(analysis_id, export_options):
     
     export_dir.mkdir(parents=True,exist_ok=True)
 
-    zip_path = export_dir / f"analysis_{analysis_id}.zip"
+    zip_path = export_dir / f"export_{export_id}.zip"
 
     files_to_export = []
 

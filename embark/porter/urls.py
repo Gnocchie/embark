@@ -16,8 +16,11 @@ urlpatterns = [
 
     path('export/', views.export_menu, name='embark-export-menu'),
     path('export/download/', views.export_analysis, name='embark-export-analysis'),
-    path('export/zip/<uuid:analysis_id>/', views.make_zip, name='embark-make-zip'), #FIXME: Old function, "make_zip()" replaced by "export_analysis()"
-    path('export/download/<uuid:analysis_id>/',views.download_export,name='embark-export-download'),
-    path('export/delete/<uuid:analysis_id>/',views.delete_export,name='embark-export-delete'),
+    path('export/download/<uuid:export_id>/',views.download_export,name='embark-export-download'),
+    path('export/delete/<uuid:export_id>/',views.delete_export,name='embark-export-delete'),
+
     path('retry-import/', views.retry_import, name='embark-retry-import'),
+
+    path('export/zip/<uuid:analysis_id>/', views.make_zip, name='embark-make-zip'), #FIXME: Old function, "make_zip()" replaced by "export_analysis()"
+
 ]
